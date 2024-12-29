@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*{
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+}
+html ,body{
+  height: 100%;
+  width: 100%;
+}
+
+body{
+  height: 100%;
+}
+/* Global styles (or in your Tailwind config if required) */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
