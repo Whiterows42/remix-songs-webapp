@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.5.0",
+    "axios": "^1.7.9",
     "cloudinary": "^2.5.1",
     "lucide-react": "^0.469.0",
     "mongodb": "^6.12.0",

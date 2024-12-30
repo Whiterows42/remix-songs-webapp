@@ -13,6 +13,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import axios from "axios";
 
 const UploadMusic = () => {
   const [dragActive, setDragActive] = useState(false);
@@ -103,66 +104,88 @@ const UploadMusic = () => {
       alert("Please select a file to upload");
       return;
     }
-
+  
     if (!formState.title || !formState.category) {
       alert("Please fill in all required fields");
       return;
     }
-
-    // Create form data for upload
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-    formData.append("title", formState.title);
-    formData.append("category", formState.category);
-    formData.append("artist", formState.artist);
-    formData.append("releaseDate", formState.releaseDate);
-
-    const payload = {
-      file: selectedFile,
-      title: formState.title,
-      category: formState.category,
-      artist: formState.artist,
-      releaseDate: formState.releaseDate,
-    };
-    console.log("payload", payload);
+  
     try {
+      // Fetch Cloudinary signature from your API
+      const signatureResponse = await fetch("/api/cloudinary");
+      const { signature, timestamp, cloudName, apiKey } = await signatureResponse.json();
+  
+      // Create form data for direct Cloudinary upload
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("api_key", apiKey);
+      formData.append("timestamp", timestamp);
+      formData.append("signature", signature);
+  
+      // Upload file to Cloudinary
+      const uploadResponse = await axios.post(
+        `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
+        formData
+      );
+  
+      // Extract the secure URL from Cloudinary response
+      const { secure_url } = uploadResponse.data;
+  
+      // Payload for your API to store metadata in MongoDB
+      const payload = {
+        title: formState.title,
+        category: formState.category,
+        artist: formState.artist,
+        releaseDate: formState.releaseDate,
+        url: secure_url, // Cloudinary file URL
+      };
+  
+      // Save metadata to your database
       const response = await fetch("/api/uploadsong", {
         method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-      console.log("datais", data);
-      // Add to uploaded songs
-      setUploadedSongs((prev) => [
-        {
-          id: Date.now(),
-          title: formState.title,
-          category: formState.category,
-          status: "Draft",
-          uploadDate: new Date().toISOString().split("T")[0],
+        headers: {
+          "Content-Type": "application/json",
         },
-        ...prev,
-      ]);
-
-      // Reset form
-      setSelectedFile(null);
-      setFormState({
-        title: "",
-        category: "",
-        artist: "",
-        releaseDate: "",
+        body: JSON.stringify(payload),
       });
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+  
+      const data = await response.json();
+  
+      if (data.success) {
+        // Update uploaded songs state
+        setUploadedSongs((prev) => [
+          {
+            id: Date.now(),
+            title: formState.title,
+            category: formState.category,
+            status: "Draft",
+            uploadDate: new Date().toISOString().split("T")[0],
+          },
+          ...prev,
+        ]);
+  
+        // Reset form state
+        setSelectedFile(null);
+        setFormState({
+          title: "",
+          category: "",
+          artist: "",
+          releaseDate: "",
+        });
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+  
+        alert("Upload successful!");
+      } else {
+        alert("Upload failed. Please try again.");
       }
-
-      alert("Upload successful!");
     } catch (error) {
       console.error("Upload failed:", error);
       alert("Upload failed. Please try again.");
     }
   };
+  
 
   return (
     <div className="flex h-screen bg-white dark:bg-gray-900">
